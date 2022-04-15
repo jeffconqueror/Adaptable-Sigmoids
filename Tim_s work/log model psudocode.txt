@@ -1,0 +1,69 @@
+Algorithm to find closest neighbor: (Closest)
+    ##
+    if we can use kd-tree that would be nice but i'm not sure how to implement
+    ##
+    ARGUMENTS: points, classes, fitting
+        points: points to find closest neighbor to list/array of arrays
+        classes: the classes that we want to find distance to
+        fitting: boolean, True when fitting the data, False otherwise
+
+    RETURNS: closest
+        closest: float that tells the closest point
+
+    if fitting:
+        closest = inf
+        for each point in input_data:
+            dist = calculate distance
+            if dist < closest AND dist != 0:
+                closest = dist
+    else:
+      closest = inf
+      for each point in input_data:
+          dist = calculate distance
+          if dist < closest:
+              closest = dist
+
+    return closest
+
+
+Class Initiation:
+    distribution = gamma distribution
+    distance adjustment = log
+    ε = .0001
+
+Class fit:
+    input_data = input data
+    labels = LabelEncoded(output data)
+    params = len(labels) x 3 array
+             [γ param 1, γ param 2, lowest value]
+
+    distance = {labels: [list of distances]} currently empty
+
+    for index, data in enumerate(input_data):
+        current label = labels[index]
+        distance[labels].append closest(data, current label, fitting = True)
+
+    distance = log(distance)
+
+    for each class in distance:
+        subtract lowest value in list and save into parameters
+        add ε to each value
+        run MLE for gamma on distances
+        save found parameters in params
+
+Class predict:
+    ARGUMENTS: point
+
+    distances = {labels: distance} currently empty
+
+    for label in labels:
+        distances[label] =  closest(data, label, fitting = False)
+
+    distances = log(distances)
+
+    for each class in distances:
+        subtract the lowest value stored in parameters for class
+        if distance of class < 0:
+          prob = 1
+        else:
+          prob = 1 - cdf of each class Γ distribution w/ saved parameters
