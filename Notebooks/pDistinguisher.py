@@ -6,6 +6,7 @@ from scipy.optimize import least_squares
 from scipy.special import erf
 from sklearn.preprocessing import MinMaxScaler
 
+
 class knn_distinguish():
     def __init__(self, data, data_origin, predicted_class) -> None:
         '''
@@ -91,9 +92,19 @@ class knn_distinguish():
             p0 = [np.median(data_NN)/x_scale_factor,1] # this is initial guess for sigmoid parameters
         
         if not np.any(x):
-            popt, _ = curve_fit(f=func, xdata=x, ydata=y, p0=p0,method='lm')
+            try:
+                popt, _ = curve_fit(f=func, xdata=x, ydata=y, p0=p0,method='lm')
+            except TypeError:
+                # popt = "None"
+                popt = np.zeros(5)
+                # print(popt)
         else:
-            popt, _ = curve_fit(f=func, xdata=x/x_scale_factor, ydata=y, p0=p0,method='lm')
+            try:
+                popt, _ = curve_fit(f=func, xdata=x/x_scale_factor, ydata=y, p0=p0,method='lm')
+            except TypeError:
+                # popt = "None"
+                popt = np.zeros(5)
+                # print(popt)
 
         # parameters yielded by Curve_fit: x0, k
         #print("curve_fit parameter on "+str(func)[9:-22]+": ", popt)
@@ -159,12 +170,21 @@ class knn_distinguish():
                 continue
             # print(x)
             smoothing_term = 1e-10
-            y2 = func_list[i](x/factor, *p)
-            y_pred = 1-y2 + smoothing_term
-            y_true = 1-y + smoothing_term
-            y_pred_filtered = y_pred[y_pred > 0]
-            y_true_filtered = y_true[y_pred > 0]
-            error = np.sum(np.square(np.log(y_pred_filtered) - np.log(y_true_filtered)))
+            if np.array_equal(p, np.zeros(5)):
+                # y2 = 0
+                y_true = 1-y + smoothing_term
+                y_true_filtered = y_true[y_true > 0]
+                error = np.sum(np.square(np.log(y_true_filtered + smoothing_term)))
+            else:
+                y2 = func_list[i](x/factor, *p)
+                y_pred = 1-y2
+                y_true = 1-y
+                y_pred_filtered = y_pred[y_pred > 0]
+                y_true_filtered = y_true[y_pred > 0]
+                # print(y_pred_filtered[mask] - y_true_filtered[mask] + smoothing_term)
+                error = np.sum(np.square(np.log(y_pred_filtered + smoothing_term) - np.log(y_true_filtered + smoothing_term)))
+                # error = np.sum(np.square(np.log(y_pred_filtered[mask] - y_true_filtered[mask] + smoothing_term)))
+                
             if func_list[i] == self.arctan_GD:
                 self.arctan_popt[f"{name}"] = p
                 # print(len(p))
@@ -574,6 +594,9 @@ if __name__ == "__main__":
     '''
     new tests start here
     '''
+    '''
+    Test without binning
+    '''
 
     print("--------AT---------")
     data_lst = []
@@ -584,7 +607,7 @@ if __name__ == "__main__":
         data_lst.append(pd.read_csv(i, header=None, sep=' '))
     df_origin = pd.read_csv("/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/ATOriginal", header=None, sep=' ')
     test_AT = knn_distinguish(data_lst, df_origin, classes)
-    print(test_AT.getPvalue(if_binning=True))
+    print(test_AT.getPvalue())
     # print(test_AT.getPvalue(sig_function="algebraic"))
 
     print("--------DM---------")
@@ -674,7 +697,112 @@ if __name__ == "__main__":
         data_lst.append(pd.read_csv(i, header=None, sep=' '))
     df_origin = pd.read_csv("/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/SPOriginal", header=None, sep=' ')
     test_SP = knn_distinguish(data_lst, df_origin, classes)
-    print(test_SP.getPvalue())
+    print(test_SP.getPvalue())    
+
+    '''
+    Test binning here
+    '''
+    print("Test binning below")
+    print("--------AT---------")
+    data_lst = []
+    classes = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky', 'Original']
+    classes_pred = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky']
+    data_locations = [r"/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/AT"+c for c in classes]
+    for i in data_locations:
+        data_lst.append(pd.read_csv(i, header=None, sep=' '))
+    df_origin = pd.read_csv("/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/ATOriginal", header=None, sep=' ')
+    test_AT = knn_distinguish(data_lst, df_origin, classes)
+    print(test_AT.getPvalue(if_binning=True))
+    # print(test_AT.getPvalue(sig_function="algebraic"))
+
+    print("--------DM---------")
+    data_lst = []
+    classes = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky', 'Original']
+    classes_pred = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky']
+    data_locations = [r"/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/DM"+c for c in classes]
+    for i in data_locations:
+        data_lst.append(pd.read_csv(i, header=None, sep=' '))
+    df_origin = pd.read_csv("/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/DMOriginal", header=None, sep=' ')
+    test_DM = knn_distinguish(data_lst, df_origin, classes)
+    print(test_DM.getPvalue(if_binning=True))
+    # print(test_DM.getPvalue(sig_function="algebraic"))
+
+    print("--------CE---------")
+    data_lst = []
+    classes = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky', 'Original']
+    classes_pred = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky']
+    data_locations = [r"/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/CE"+c for c in classes]
+    for i in data_locations:
+        data_lst.append(pd.read_csv(i, header=None, sep=' '))
+    df_origin = pd.read_csv("/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/CEOriginal", header=None, sep=' ')
+    test_CE = knn_distinguish(data_lst, df_origin, classes)
+    print(test_CE.getPvalue(if_binning=True))
+
+    print("-------EC----------")
+    data_lst = []
+    classes = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky', 'Original']
+    classes_pred = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky']
+    data_locations = [r"/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/EC"+c for c in classes]
+    for i in data_locations:
+        data_lst.append(pd.read_csv(i, header=None, sep=' '))
+    df_origin = pd.read_csv("/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/ECOriginal", header=None, sep=' ')
+    test_EC = knn_distinguish(data_lst, df_origin, classes)
+    print(test_EC.getPvalue(if_binning=True))
+
+    print("--------HS---------")
+    data_lst = []
+    classes = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky', 'Original']
+    classes_pred = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky']
+    data_locations = [r"/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/HS"+c for c in classes]
+    for i in data_locations:
+        data_lst.append(pd.read_csv(i, header=None, sep=' '))
+    df_origin = pd.read_csv("/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/HSOriginal", header=None, sep=' ')
+    test_HS = knn_distinguish(data_lst, df_origin, classes)
+    print(test_HS.getPvalue(if_binning=True))
+
+    print("--------MM---------")
+    data_lst = []
+    classes = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky', 'Original']
+    classes_pred = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky']
+    data_locations = [r"/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/MM"+c for c in classes]
+    for i in data_locations:
+        data_lst.append(pd.read_csv(i, header=None, sep=' '))
+    df_origin = pd.read_csv("/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/MMOriginal", header=None, sep=' ')
+    test_MM = knn_distinguish(data_lst, df_origin, classes)
+    print(test_MM.getPvalue(if_binning=True))
+
+    print("--------RN---------")
+    data_lst = []
+    classes = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky', 'Original']
+    classes_pred = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky']
+    data_locations = [r"/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/RN"+c for c in classes]
+    for i in data_locations:
+        data_lst.append(pd.read_csv(i, header=None, sep=' '))
+    df_origin = pd.read_csv("/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/RNOriginal", header=None, sep=' ')
+    test_RN = knn_distinguish(data_lst, df_origin, classes)
+    print(test_RN.getPvalue(if_binning=True))
+
+    print("--------SC---------")
+    data_lst = []
+    classes = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky', 'Original']
+    classes_pred = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky']
+    data_locations = [r"/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/SC"+c for c in classes]
+    for i in data_locations:
+        data_lst.append(pd.read_csv(i, header=None, sep=' '))
+    df_origin = pd.read_csv("/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/SCOriginal", header=None, sep=' ')
+    test_SC = knn_distinguish(data_lst, df_origin, classes)
+    print(test_SC.getPvalue(if_binning=True))
+
+    print("--------SP---------")
+    data_lst = []
+    classes = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky', 'Original']
+    classes_pred = ['ER', 'ERDD', 'GEO', 'GEOGD', 'HGG', 'SF', 'SFDD', 'Sticky']
+    data_locations = [r"/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/SP"+c for c in classes]
+    for i in data_locations:
+        data_lst.append(pd.read_csv(i, header=None, sep=' '))
+    df_origin = pd.read_csv("/Users/lizongli/Desktop/knnResearch/Adaptable-Sigmoids/data/SPOriginal", header=None, sep=' ')
+    test_SP = knn_distinguish(data_lst, df_origin, classes)
+    print(test_SP.getPvalue(if_binning=True))
     
 
 
